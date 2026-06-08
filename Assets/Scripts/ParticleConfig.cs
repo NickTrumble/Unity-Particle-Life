@@ -4,7 +4,6 @@ using UnityEngine;
 // Contains details that the user can change, passed onto the renderer.
 public class ParticleConfig : MonoBehaviour
 {
-    [MatrixLabels]
     [SerializeField]
     private float[] weightMatrix;
 

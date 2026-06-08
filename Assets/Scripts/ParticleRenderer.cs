@@ -49,6 +49,9 @@ public class ParticleRenderer : MonoBehaviour
             prevW = width;
             prevH = height;
 
+            if (texture != null)
+                Destroy(texture);
+
             texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             texture.filterMode = FilterMode.Point;
 
@@ -70,7 +73,8 @@ public class ParticleRenderer : MonoBehaviour
             return;
 
         Array.Clear(pixels, 0, width * height);
-        for (int i = 0; i < config.particleCount; i++)
+        int particleCount = particleSimulation.ParticleCount;
+        for (int i = 0; i < particleCount; i++)
         {
             RenderParticle(particleSimulation.GetParticle(i));
         }
@@ -81,13 +85,10 @@ public class ParticleRenderer : MonoBehaviour
 
     private void RenderParticle(Particle p)
     {
-        if (p == null)
-            return;
-
         int rad = Mathf.FloorToInt(config.particleSize / 2);
         int rad2 = rad * rad;
-        int x = (int)p.GetX();
-        int y = (int)p.GetY();
+        int x = (int)p.x;
+        int y = (int)p.y;
 
         for (int i = -rad + x; i <= rad + x; i++)
         {
@@ -100,7 +101,7 @@ public class ParticleRenderer : MonoBehaviour
 
                     if (rad2 >= dx * dx + dy * dy)
                     {
-                        pixels[j * width + i] = ColourToInt(config.TypeColours[p.GetParticleType()]);
+                        pixels[j * width + i] = ColourToInt(config.TypeColours[p.type]);
                     }
                 }
             }
@@ -117,6 +118,12 @@ public class ParticleRenderer : MonoBehaviour
 
     private int FloatColourToInt(float colour)
     {
-        return Mathf.FloorToInt(colour * 255);
+        return Mathf.Clamp(Mathf.FloorToInt(colour * 255), 0, 255);
+    }
+
+    private void OnDestroy()
+    {
+        if (texture != null)
+            Destroy(texture);
     }
 }

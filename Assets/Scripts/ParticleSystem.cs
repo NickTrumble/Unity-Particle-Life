@@ -70,7 +70,9 @@ public class ParticleSystem : MonoBehaviour
             forceBuffer = forceBuffer,
             dt = config.timeStep,
             dampening = config.damping,
-            maxSpeed = config.maxSpeed
+            maxSpeed = config.maxSpeed,
+            width = config.width,
+            height = config.height
         };
 
         handle = integrateJob.Schedule(particles.Length, 64, handle);
@@ -399,6 +401,9 @@ public struct IntegrateJob : IJobParallelFor
     public float dampening;
     public float maxSpeed;
 
+    public int width;
+    public int height;
+
     Particle p;
 
     public void Execute(int i)
@@ -423,6 +428,9 @@ public struct IntegrateJob : IJobParallelFor
 
         p.u *= dampening;
         p.v *= dampening;
+
+        p.x = math.fmod(p.x + width, width);
+        p.y = math.fmod(p.y + height, height);
 
         forceBuffer[i] = float2.zero;
 
@@ -459,8 +467,12 @@ public struct ExecuteJob : IJobParallelFor
 
             p1 = particles[j];
 
+            //wraps
             float dx = p1.x - p.x;
+            dx -= width * math.round(dx / width);
+
             float dy = p1.y - p.y;
+            dy -= height * math.round(dy / height);
 
             float distSquared = dx * dx + dy * dy;
 

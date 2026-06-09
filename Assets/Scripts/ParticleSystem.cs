@@ -1,26 +1,28 @@
-using System;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Burst;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Mathematics;
+using UnityEditor.PackageManager;
+using System;
 
 public struct Particle
 {
-    public float x;
-    public float y;
-    public float u;
-    public float v;
-    public float ax;
-    public float ay;
+    public float x, y;
+    public float u, v;
+    public float ax, ay;
     public int type;
 }
 
 // Contains calculations with multiple particles.
 public class ParticleSystem : MonoBehaviour
 {
-
-
     public ParticleConfig config;
 
-    private Particle[] particles;
+    private NativeArray<Particle> particles;
+    private NativeArray<float2> forceBuffer;
+    private NativeArray<float> cachedWeights;
     private List<int>[,] gridIndices;
     private readonly HashSet<int> visitedNeighbourCells = new HashSet<int>();
 
@@ -29,12 +31,14 @@ public class ParticleSystem : MonoBehaviour
 
     private static System.Random rnd = new System.Random();
 
+
     void Start()
     {
         if (config == null)
             return;
 
         config.CountUpdated += UpdateCount;
+        config.WeightUpdated += FlattenWeights;
         config.ParticlesResetRequested += ResetParticles;
         config.ParticlePositionsRandomizedRequested += RandomiseParticlePositions;
 
@@ -47,16 +51,61 @@ public class ParticleSystem : MonoBehaviour
         if (config == null || particles == null || !config.isRunning())
             return;
 
-        ApplyForcesOnNeighbours();
+        var forceJob = new ExecuteJob
+        {
+            particles = particles,
+            forceBuffer = forceBuffer,
+            radius = config.forceRadius,
+            width = config.width,
+            height = config.height,
+            typeCount = config.particleTypeCount,
+            weights = cachedWeights
+        };
 
-        for (int i = 0; i < particles.Length; i++)
-            UpdateParticle(i);
+        JobHandle handle = forceJob.Schedule(particles.Length, 64);
+
+        var integrateJob = new IntegrateJob
+        {
+            particles = particles,
+            forceBuffer = forceBuffer,
+            dt = config.timeStep,
+            dampening = config.damping,
+            maxSpeed = config.maxSpeed
+        };
+
+        handle = integrateJob.Schedule(particles.Length, 64, handle);
+
+        handle.Complete();
+    }
+
+    void OnDestroy()
+    {
+        if (particles.IsCreated)
+            particles.Dispose();
+
+        if (forceBuffer.IsCreated)
+            forceBuffer.Dispose();
+        
+        if (cachedWeights.IsCreated) 
+            cachedWeights.Dispose();
+    }
+
+    private void FlattenWeights()
+    {
+        int typeCount = config.particleTypeCount;
+
+        NativeArray<float> weights = new NativeArray<float>(typeCount * typeCount, Allocator.Persistent);
+        for (int i = 0; i < config.particleTypeCount * config.particleTypeCount; i++)
+        {
+            weights[i] = config.weightMatrix[i];
+        }
+        cachedWeights = weights;
     }
 
     private void ApplyForce(int i1, int i2)
     {
-        ref Particle p1 = ref particles[i1];
-        ref Particle p2 = ref particles[i2];
+        Particle p1 = particles[i1];
+        Particle p2 = particles[i2];
 
         float dx = GetWrappedDeltaX(p1.x, p2.x);
         float dy = GetWrappedDeltaY(p1.y, p2.y);
@@ -81,6 +130,9 @@ public class ParticleSystem : MonoBehaviour
 
         p1.ax += nx * force / config.particleMass;
         p1.ay += ny * force / config.particleMass;
+
+        particles[i1] = p1;
+        particles[i2] = p2;
     }
 
     private float GetWrappedDeltaX(float p1, float p2)
@@ -229,7 +281,9 @@ public class ParticleSystem : MonoBehaviour
         if (config == null)
             return;
 
-        particles = new Particle[config.particleCount];
+        particles = new NativeArray<Particle>(config.particleCount, Allocator.Persistent);
+        forceBuffer = new NativeArray<float2>(config.particleCount, Allocator.Persistent);
+        FlattenWeights();
         InitGrid();
         PopulateGrid();
     }
@@ -264,7 +318,7 @@ public class ParticleSystem : MonoBehaviour
 
     private void UpdateParticle(int index)
     {
-        ref Particle particle = ref particles[index];
+        Particle particle = particles[index];
 
         particle.u += particle.ax * config.timeStep;
         particle.v += particle.ay * config.timeStep;
@@ -279,6 +333,8 @@ public class ParticleSystem : MonoBehaviour
 
         particle.u *= config.damping;
         particle.v *= config.damping;
+
+        particles[index] = particle;
     }
 
     private void LimitSpeed(int index)
@@ -290,8 +346,10 @@ public class ParticleSystem : MonoBehaviour
             return;
 
         float scale = config.maxSpeed / Mathf.Sqrt(speedSquared);
-        particles[index].u *= scale;
-        particles[index].v *= scale;
+        Particle p = particles[index];
+        p.u *= scale;
+        p.v *= scale;
+        particles[index] = p;
     }
 
     private void PopulateGrid()
@@ -306,8 +364,10 @@ public class ParticleSystem : MonoBehaviour
 
     public void RandomisePosition(int index)
     {
-        particles[index].x = rnd.Next(config.width);
-        particles[index].y = rnd.Next(config.height);
+        Particle p = particles[index];
+        p.x = rnd.Next(config.width);
+        p.y = rnd.Next(config.height);
+        particles[index] = p;
     }
 
     public Particle GetParticle(int index)
@@ -324,5 +384,102 @@ public class ParticleSystem : MonoBehaviour
     public int ParticleCount
     {
         get { return particles == null ? 0 : particles.Length; }
+    }
+}
+
+
+//apply the force
+[BurstCompile]
+public struct IntegrateJob : IJobParallelFor
+{
+    public NativeArray<Particle> particles;
+    public NativeArray<float2> forceBuffer;
+
+    public float dt;
+    public float dampening;
+    public float maxSpeed;
+
+    Particle p;
+
+    public void Execute(int i)
+    {
+        p = particles[i];
+        float2 a = forceBuffer[i];
+
+        p.u += a.x * dt;
+        p.v += a.y * dt;
+
+        float speedSquared = p.u * p.u + p.v * p.v;
+
+        if (speedSquared > maxSpeed * maxSpeed)
+        {
+            float scale = maxSpeed / math.sqrt(speedSquared);
+            p.u *= scale;
+            p.v *= scale;
+        }
+
+        p.x += p.u * dt;
+        p.y += p.v * dt;
+
+        p.u *= dampening;
+        p.v *= dampening;
+
+        forceBuffer[i] = float2.zero;
+
+        particles[i] = p;
+    }
+
+}
+
+//calc the force
+[BurstCompile]
+public struct ExecuteJob : IJobParallelFor
+{
+    [ReadOnly] public NativeArray<Particle> particles;
+    public NativeArray<float2> forceBuffer;
+
+    public float radius;
+    public float width;
+    public float height;
+
+    [ReadOnly] public NativeArray<float> weights;
+    public int typeCount;
+
+    public void Execute(int i)
+    {
+        Particle p = particles[i];
+        Particle p1;
+
+        float2 total = float2.zero;
+
+        for (int j = 0; j < particles.Length; j++)
+        {
+            if (i == j)
+                continue;
+
+            p1 = particles[j];
+
+            float dx = p1.x - p.x;
+            float dy = p1.y - p.y;
+
+            float distSquared = dx * dx + dy * dy;
+
+            if (distSquared > radius * radius)
+                continue;
+
+            float dist = math.sqrt(distSquared) + 1e-8f;
+            float nd = dist / radius;
+
+            
+            float weight = weights[p.type * typeCount + p1.type];
+
+            float force = weight * (1f - nd);
+            if (nd < 0.4f)
+                force = -1f * (0.2f / (nd + 0.001f));
+
+            total += new float2(dx / dist, dy / dist) * force;
+        }
+
+        forceBuffer[i] = total;
     }
 }

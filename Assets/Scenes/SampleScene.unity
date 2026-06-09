@@ -394,7 +394,7 @@ MonoBehaviour:
   damping: 0.95
   gridX: 8
   gridY: 5
-  timeStep: 0.45
+  timeStep: 0.05
   TypeColours:
   - {r: 0.95, g: 0.2, b: 0.24, a: 1}
   - {r: 0.18, g: 0.85, b: 0.42, a: 1}

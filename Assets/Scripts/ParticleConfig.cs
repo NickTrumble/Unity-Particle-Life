@@ -4,8 +4,8 @@ using UnityEngine;
 // Contains details that the user can change, passed onto the renderer.
 public class ParticleConfig : MonoBehaviour
 {
-    [SerializeField]
-    private float[] weightMatrix;
+    
+    public float[] weightMatrix;
 
     public int width = 800;
     public int height = 450;
@@ -24,6 +24,7 @@ public class ParticleConfig : MonoBehaviour
     public float timeStep = 0.45f;
 
     public Action CountUpdated;
+    public Action WeightUpdated;
     public Action ParticlesResetRequested;
     public Action ParticlePositionsRandomizedRequested;
     public Color[] TypeColours;
@@ -81,6 +82,7 @@ public class ParticleConfig : MonoBehaviour
                 SetWeight(i, j, (float)((rnd.NextDouble() * 10f) - 5f));
             }
         }
+        WeightUpdated?.Invoke();
     }
 
     public void ApplyRecommendedSettings()

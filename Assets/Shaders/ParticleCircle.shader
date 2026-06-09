@@ -42,7 +42,9 @@
                 UNITY_VERTEX_INPUT_INSTANCE_ID // instance id
             };
 
-            fixed4 _Color;
+            UNITY_INSTANCING_BUFFER_START(Props)
+            UNITY_DEFINE_INSTANCED_PROP(fixed4, _Color)
+            UNITY_INSTANCING_BUFFER_END(Props)
 
             //converts teh local space coords to screen space
             //keeps the uv coordinates the same tho (corners)
@@ -71,7 +73,7 @@
                 if (dist > 1.0)
                     discard;
 
-                return _Color;
+                return UNITY_ACCESS_INSTANCED_PROP(Props, _Color);
             }
             ENDCG
         }

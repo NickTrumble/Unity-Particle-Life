@@ -220,53 +220,6 @@ public class ParticleSystem : MonoBehaviour
             !Mathf.Approximately(gridHeight, (float)config.height / config.gridY);
     }
 
-    private void ApplyForcesOnNeighbours()
-    {
-        BuildGrid();
-
-        for(int i = 0; i < config.gridX; i++)
-        {
-            for (int j = 0; j < config.gridY; j++)
-            {
-                IterateCell(i, j);
-            }
-        }
-    }
-
-    private void IterateCell(int x, int y)
-    {
-        int neighbourRangeX = Mathf.CeilToInt(config.forceRadius / gridWidth);
-        int neighbourRangeY = Mathf.CeilToInt(config.forceRadius / gridHeight);
-
-        foreach(int i1 in gridIndices[x, y])
-        {
-            visitedNeighbourCells.Clear();
-
-            for (int i = -neighbourRangeX; i <= neighbourRangeX; i++)
-            {
-                for (int j = -neighbourRangeY; j <= neighbourRangeY; j++)
-                {
-                    int x1 = WrapIndex(x + i, config.gridX);
-                    int y1 = WrapIndex(y + j, config.gridY);
-                    int cellIndex = y1 * config.gridX + x1;
-
-                    if (!visitedNeighbourCells.Add(cellIndex))
-                        continue;
-
-                    List<int> neighbours = gridIndices[x1, y1];
-                    foreach(int i2 in neighbours)
-                    {
-                        if (i2 <= i1)
-                            continue;
-
-                        ApplyForce(i1, i2);
-                        ApplyForce(i2, i1);
-                    }
-                }
-            }
-        }
-    }
-
     private int WrapIndex(int index, int length)
     {
         return (index % length + length) % length;
@@ -318,42 +271,6 @@ public class ParticleSystem : MonoBehaviour
         };
     }
 
-    private void UpdateParticle(int index)
-    {
-        Particle particle = particles[index];
-
-        particle.u += particle.ax * config.timeStep;
-        particle.v += particle.ay * config.timeStep;
-
-        LimitSpeed(index);
-
-        particle.x = (config.width + particle.x + particle.u * config.timeStep) % config.width;
-        particle.y = (config.height + particle.y + particle.v * config.timeStep) % config.height;
-
-        particle.ax = 0f;
-        particle.ay = 0f;
-
-        particle.u *= config.damping;
-        particle.v *= config.damping;
-
-        particles[index] = particle;
-    }
-
-    private void LimitSpeed(int index)
-    {
-        float speedSquared = particles[index].u * particles[index].u + particles[index].v * particles[index].v;
-        float maxSpeedSquared = config.maxSpeed * config.maxSpeed;
-
-        if (speedSquared <= maxSpeedSquared)
-            return;
-
-        float scale = config.maxSpeed / Mathf.Sqrt(speedSquared);
-        Particle p = particles[index];
-        p.u *= scale;
-        p.v *= scale;
-        particles[index] = p;
-    }
-
     private void PopulateGrid()
     {
         int type = -1;
@@ -382,6 +299,8 @@ public class ParticleSystem : MonoBehaviour
 
         return particles[index];
     }
+
+    public NativeArray<Particle> GetParticles() { return particles; }
 
     public int ParticleCount
     {

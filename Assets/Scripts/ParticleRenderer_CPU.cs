@@ -3,10 +3,9 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 // Contains the rendering.
-public class ParticleRenderer : MonoBehaviour
+public class ParticleRenderer_CPU : MonoBehaviour
 {
     public ParticleConfig config;
-    [FormerlySerializedAs("particleSystem")]
     public ParticleSystem particleSimulation;
     public Renderer rend;
 
@@ -40,6 +39,7 @@ public class ParticleRenderer : MonoBehaviour
 
         CheckForNewSize();
         DrawParticles();
+        Debug.Log("still wokgin");
     }
 
     private void CheckForNewSize()

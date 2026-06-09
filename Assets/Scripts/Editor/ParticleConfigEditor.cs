@@ -10,6 +10,7 @@ public class ParticleConfigEditor : Editor
     private SerializedProperty particleSize;
     private SerializedProperty particleMass;
     private SerializedProperty forceRadius;
+    private SerializedProperty maxAttraction;
     private SerializedProperty maxSpeed;
     private SerializedProperty damping;
     private SerializedProperty timeStep;
@@ -25,6 +26,7 @@ public class ParticleConfigEditor : Editor
         particleSize = serializedObject.FindProperty("particleSize");
         particleMass = serializedObject.FindProperty("particleMass");
         forceRadius = serializedObject.FindProperty("forceRadius");
+        maxAttraction = serializedObject.FindProperty("maxAttraction");
         maxSpeed = serializedObject.FindProperty("maxSpeed");
         damping = serializedObject.FindProperty("damping");
         timeStep = serializedObject.FindProperty("timeStep");
@@ -100,9 +102,10 @@ public class ParticleConfigEditor : Editor
     private void DrawSimulationSettings()
     {
         EditorGUILayout.LabelField("Simulation", EditorStyles.boldLabel);
-        EditorGUILayout.IntSlider(particleCount, 0, 1000, "Particle Count");
+        EditorGUILayout.IntSlider(particleCount, 0, 10000, "Particle Count");
         EditorGUILayout.IntSlider(particleTypeCount, 1, 8, "Types");
         EditorGUILayout.IntSlider(forceRadius, 5, 160, "Force Radius");
+        EditorGUILayout.IntSlider(maxAttraction, 0, 10, "Max Attraction");
         EditorGUILayout.Slider(maxSpeed, 1f, 100f, "Max Speed");
         EditorGUILayout.Slider(damping, 0.75f, 0.99f, "Damping");
         EditorGUILayout.Slider(timeStep, 0.05f, 1f, "Time Step");
@@ -112,7 +115,7 @@ public class ParticleConfigEditor : Editor
     private void DrawDisplaySettings()
     {
         EditorGUILayout.LabelField("Display", EditorStyles.boldLabel);
-        EditorGUILayout.IntSlider(width, 100, 1600, "Texture Width");
+        EditorGUILayout.IntSlider(width, 100, 3200, "Texture Width");
 
         int previewHeight = Mathf.Max(100, 9 * width.intValue / 16);
         using (new EditorGUI.DisabledScope(true))

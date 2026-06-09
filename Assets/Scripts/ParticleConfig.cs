@@ -15,6 +15,7 @@ public class ParticleConfig : MonoBehaviour
     public int particleSize = 5;
     public int particleMass = 12;
     public int forceRadius = 65;
+    public int maxAttraction = 2;
     public float maxSpeed = 35f;
     public float damping = 0.88f;
 
@@ -79,7 +80,7 @@ public class ParticleConfig : MonoBehaviour
         {
             for (int j = 0; j < particleTypeCount; j++)
             {
-                SetWeight(i, j, (float)((rnd.NextDouble() * 10f) - 5f));
+                SetWeight(i, j, (float)((rnd.NextDouble() * 2 * maxAttraction) - maxAttraction));
             }
         }
         WeightUpdated?.Invoke();

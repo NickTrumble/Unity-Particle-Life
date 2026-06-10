@@ -97,7 +97,7 @@ public class ParticleConfig : MonoBehaviour
         particleSize = 5;
         particleMass = 12;
         forceRadius = 65;
-        maxSpeed = 35f;
+        maxSpeed = 15f;
         damping = 0.95f;
         timeStep = 0.2f;
 

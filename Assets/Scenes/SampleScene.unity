@@ -421,38 +421,61 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   weightMatrix:
-  - -1.8973683
-  - -1.1270589
-  - -0.5844246
-  - 1.2460499
-  - 1.7556205
-  - -0.9238155
-  - 1.6183106
-  - -0.6087286
-  - -1.6396816
-  - 1.0388739
-  - 0.08966175
-  - 0.9698009
-  - 0.53158116
-  - -1.0530269
-  - -0.7466526
-  - 1.2920666
-  width: 375
-  height: 210
-  particleCount: 555
-  particleTypeCount: 4
+  - 1
+  - 0.2
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 1
+  - 0.2
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 1
+  - 0.2
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 1
+  - 0.2
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 1
+  - 0.2
+  - 0.2
+  - 0
+  - 0
+  - 0
+  - 0
+  - 1
+  width: 1600
+  height: 900
+  particleCount: 15000
+  particleTypeCount: 6
   particleSize: 5
   particleMass: 12
-  forceRadius: 45
-  maxAttraction: 5
-  maxSpeed: 35
+  forceRadius: 65
+  maxAttraction: 4
+  maxSpeed: 15
   damping: 0.95
-  timeStep: 0.1
+  timeStep: 0.2
+  forceScaling: 1
   TypeColours:
-  - {r: 0.95, g: 0.2, b: 0.24, a: 1}
+  - {r: 1, g: 0, b: 0, a: 1}
+  - {r: 1, g: 0.5, b: 0, a: 1}
+  - {r: 1, g: 0.92, b: 0.16, a: 1}
   - {r: 0.18, g: 0.85, b: 0.42, a: 1}
   - {r: 0.22, g: 0.48, b: 1, a: 1}
-  - {r: 1, g: 0.82, b: 0.18, a: 1}
+  - {r: 0.6, g: 0.2, b: 0.8, a: 1}
 --- !u!4 &1261789555
 Transform:
   m_ObjectHideFlags: 0

@@ -100,8 +100,8 @@ public class ParticleSystem : MonoBehaviour
         };
 
         JobHandle handle = buildJob.Schedule();
-        handle = forceJob.Schedule(particles.Length, 64, handle);
-        handle = integrateJob.Schedule(particles.Length, 64, handle);
+        handle = forceJob.Schedule(particles.Length, 32, handle);
+        handle = integrateJob.Schedule(particles.Length, 128, handle);
 
         handle.Complete();
     }
@@ -184,12 +184,14 @@ public class ParticleSystem : MonoBehaviour
     {
         int typeCount = config.particleTypeCount;
 
-        NativeArray<float> weights = new NativeArray<float>(typeCount * typeCount, Allocator.Persistent);
+        if (cachedWeights.IsCreated) cachedWeights.Dispose();
+
+        cachedWeights = new NativeArray<float>(typeCount * typeCount, Allocator.Persistent);
+        
         for (int i = 0; i < config.particleTypeCount * config.particleTypeCount; i++)
         {
-            weights[i] = config.weightMatrix[i];
+            cachedWeights[i] = config.weightMatrix[i];
         }
-        cachedWeights = weights;
     }
 
     private void UpdateCount()
@@ -202,6 +204,9 @@ public class ParticleSystem : MonoBehaviour
         if (config == null)
             return;
 
+        if (particles.IsCreated) particles.Dispose();
+        if (forceBuffer.IsCreated) forceBuffer.Dispose();
+
         particles = new NativeArray<Particle>(config.particleCount, Allocator.Persistent);
         forceBuffer = new NativeArray<float2>(config.particleCount, Allocator.Persistent);
 
@@ -209,9 +214,9 @@ public class ParticleSystem : MonoBehaviour
         gridHeight = (float)config.height / config.GetGridY();
 
         FlattenWeights();
-        PopulateGrid();
-
+        
         InitGrid();
+        PopulateGrid();
     }
 
     private void RandomiseParticlePositions()
@@ -353,8 +358,11 @@ public struct ExecuteJob : IJobParallelFor
 
     public void Execute(int i)
     {
+        float minSpacing = 0.1f;
         Particle p = particles[i];
         float2 total = float2.zero;
+
+        float radiusSquared = radius * radius;
 
         int cellX = math.clamp((int)(p.x / cellWidth), 0, gridX - 1);
         int cellY = math.clamp((int)(p.y / cellHeight), 0, gridY - 1);
@@ -369,7 +377,6 @@ public struct ExecuteJob : IJobParallelFor
                 int wx = (gridX + cellX + x) % gridX;
                 int wy = (gridY + cellY + y) % gridY;
 
-
                 int cell = wx * gridY + wy;
 
                 for (int j = 0; j < gridCellCount[cell]; j++)
@@ -383,8 +390,16 @@ public struct ExecuteJob : IJobParallelFor
                     dy -= height * math.round(dy / height);
 
                     float distSquared = dx * dx + dy * dy;
-                    if (distSquared > radius * radius)
+                    if (distSquared > radiusSquared || distSquared < 1e-8f)
                         continue;
+
+                    if (distSquared < minSpacing * minSpacing)
+                    {
+                        float angle = (i * 56.365857f) % (math.PI * 2f);
+                        dx = math.cos(angle) * minSpacing;
+                        dy = math.sin(angle) * minSpacing;
+                        distSquared = minSpacing * minSpacing;
+                    }
 
                     float dist = math.sqrt(distSquared) + 1e-8f;
                     float nd = dist / radius;
@@ -396,17 +411,18 @@ public struct ExecuteJob : IJobParallelFor
                     //    force = -1f * (1f - (nd + 1e-5f)) / 0.2f;
 
                     float force;
-                    if (nd < 0.35f)
+                    if (distSquared < radiusSquared * 0.09f) //0.3f ^ 2
                     {
-                        force = -1f * (0.35f - nd) / 0.35f;   // smooth repulsion
+                        force = -5f * (0.3f - nd) / 0.3f;
                     }
                     else
                     {
-                        float t = (nd - 0.35f) / (1f - 0.35f);
-                        force = weight * (1f - t);           // smooth attraction decay
+                        float t = (nd - 0.3f) / (1f - 0.3f);
+                        force = weight * (1f - t) * 0.8f;
                     }
 
-                    total += new float2(dx / dist, dy / dist) * force;
+                    total.x += dx * force / dist;
+                    total.y += dy * force / dist;   
                 } 
 
 

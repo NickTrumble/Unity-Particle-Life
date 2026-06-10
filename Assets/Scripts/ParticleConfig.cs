@@ -19,9 +19,6 @@ public class ParticleConfig : MonoBehaviour
     public float maxSpeed = 35f;
     public float damping = 0.88f;
 
-    public int gridX = 8;
-    public int gridY = 5;
-
     public float timeStep = 0.45f;
 
     public Action CountUpdated;
@@ -31,6 +28,8 @@ public class ParticleConfig : MonoBehaviour
     public Color[] TypeColours;
 
     private bool running = false;
+    private int gridX = 8;
+    private int gridY = 5;
 
     private Color[] baseColours = new Color[]
     {
@@ -97,10 +96,10 @@ public class ParticleConfig : MonoBehaviour
         forceRadius = 65;
         maxSpeed = 35f;
         damping = 0.88f;
-        gridX = 8;
-        gridY = 5;
         timeStep = 0.45f;
 
+        gridX = 12;
+        gridY = 6;
         TypeColours = new Color[particleTypeCount];
         Array.Copy(baseColours, TypeColours, particleTypeCount);
 
@@ -127,12 +126,12 @@ public class ParticleConfig : MonoBehaviour
         maxSpeed = Mathf.Max(1f, maxSpeed);
         damping = Mathf.Clamp01(damping);
 
-        gridX = Math.Max(1, gridX);
-        gridY = Math.Max(1, gridY);
-
         width = Mathf.Max(100, width);
         height = Mathf.Max(100, height);
         height = 9 * width / 16;
+
+        gridX = Math.Max(1, Mathf.FloorToInt((float)width / forceRadius));
+        gridY = Math.Max(1, Mathf.FloorToInt((float)height / forceRadius));
 
         EnsureConfigArrays();
 
@@ -190,4 +189,7 @@ public class ParticleConfig : MonoBehaviour
         EnsureConfigArrays();
         weightMatrix[x * particleTypeCount + y] = val;
     }
+
+    public int GetGridX() { return gridX; }
+    public int GetGridY() { return gridY; }
 }

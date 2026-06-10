@@ -6,6 +6,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using UnityEditor.PackageManager;
 using System;
+using JetBrains.Annotations;
 
 public struct Particle
 {
@@ -23,14 +24,15 @@ public class ParticleSystem : MonoBehaviour
     private NativeArray<Particle> particles;
     private NativeArray<float2> forceBuffer;
     private NativeArray<float> cachedWeights;
-    private List<int>[,] gridIndices;
-    private readonly HashSet<int> visitedNeighbourCells = new HashSet<int>();
-
-    private float gridWidth;
-    private float gridHeight;
 
     private static System.Random rnd = new System.Random();
 
+    private NativeArray<int> gridCells;
+    private NativeArray<int> gridCellStart;
+    private NativeArray<int> gridCellCount;
+
+    private float gridWidth;
+    private float gridHeight;
 
     void Start()
     {
@@ -45,11 +47,12 @@ public class ParticleSystem : MonoBehaviour
         ResetParticles();
     }
 
-
     void Update()
     {
         if (config == null || particles == null || !config.isRunning())
             return;
+
+        BuildGrid();
 
         var forceJob = new ExecuteJob
         {
@@ -59,7 +62,15 @@ public class ParticleSystem : MonoBehaviour
             width = config.width,
             height = config.height,
             typeCount = config.particleTypeCount,
-            weights = cachedWeights
+            weights = cachedWeights,
+            //grid
+            gridCellCount = gridCellCount,
+            gridCells = gridCells,
+            gridCellStart = gridCellStart,
+            gridX = config.GetGridX(),
+            gridY = config.GetGridY(),
+            cellHeight = gridHeight,
+            cellWidth = gridWidth
         };
 
         JobHandle handle = forceJob.Schedule(particles.Length, 64);
@@ -82,16 +93,77 @@ public class ParticleSystem : MonoBehaviour
 
     void OnDestroy()
     {
-        if (particles.IsCreated)
-            particles.Dispose();
+        if (particles.IsCreated) particles.Dispose();
 
-        if (forceBuffer.IsCreated)
-            forceBuffer.Dispose();
+        if (forceBuffer.IsCreated) forceBuffer.Dispose();
         
-        if (cachedWeights.IsCreated) 
-            cachedWeights.Dispose();
+        if (cachedWeights.IsCreated) cachedWeights.Dispose();
+        
+        if (gridCells.IsCreated) gridCells.Dispose();
+
+        if (gridCellStart.IsCreated) gridCellStart.Dispose();
+
+        if (gridCellCount.IsCreated) gridCellCount.Dispose();
     }
 
+    private void InitGrid()
+    {
+        int cellCount = config.GetGridX() * config.GetGridY();
+
+        if (gridCells.IsCreated) gridCells.Dispose();
+        if (gridCellStart.IsCreated) gridCellStart.Dispose();
+        if (gridCellCount.IsCreated) gridCellCount.Dispose();
+
+        gridCells = new NativeArray<int>(config.particleCount, Allocator.Persistent);
+        gridCellStart = new NativeArray<int>(cellCount, Allocator.Persistent);
+        gridCellCount = new NativeArray<int>(cellCount, Allocator.Persistent);
+    }
+
+    private void BuildGrid()
+    {
+        int cellCount = config.GetGridX() * config.GetGridY();
+
+        EmptyGridCellCount(cellCount);
+
+        for (int i = 0; i < particles.Length; i++)
+        {
+            gridCellCount[GetCellIndex(particles[i])]++;
+        }
+
+        gridCellStart[0] = 0;
+        for (int i = 1; i < cellCount; i++)
+        {
+            gridCellStart[i] = gridCellStart[i - 1] + gridCellCount[i - 1];
+        }
+
+        EmptyGridCellCount(cellCount);
+
+        for (int i = 0; i < particles.Length; i++)
+        {
+            int cell = GetCellIndex(particles[i]);
+            gridCells[gridCellStart[cell] + gridCellCount[cell]] = i;
+            gridCellCount[cell]++;
+        }
+    }
+
+    private int GetCellIndex(Particle p)
+    {
+        int[] cell = GetCellIndexes(p);
+        return cell[0] * config.GetGridY() + cell[1];
+    }
+
+    private int[] GetCellIndexes(Particle p)
+    {
+        int cellX = Mathf.Clamp((int)(p.x / gridWidth), 0, config.GetGridX() - 1);
+        int cellY = Mathf.Clamp((int)(p.y / gridHeight), 0, config.GetGridY() - 1);
+        return new int[] { cellX, cellY };
+    }
+
+    private void EmptyGridCellCount(int cellCount)
+    {
+        for (int i = 0; i < cellCount; i++)
+            gridCellCount[i] = 0;
+    }
     private void FlattenWeights()
     {
         int typeCount = config.particleTypeCount;
@@ -104,130 +176,8 @@ public class ParticleSystem : MonoBehaviour
         cachedWeights = weights;
     }
 
-    private void ApplyForce(int i1, int i2)
-    {
-        Particle p1 = particles[i1];
-        Particle p2 = particles[i2];
-
-        float dx = GetWrappedDeltaX(p1.x, p2.x);
-        float dy = GetWrappedDeltaY(p1.y, p2.y);
-        float distanceSquared = dx * dx + dy * dy;
-        float radiusSquared = config.forceRadius * config.forceRadius;
-
-        if (distanceSquared > radiusSquared)
-            return;
-        float force;
-        float weight = config.GetWeight(p1.type, p2.type);
-        if (distanceSquared / radiusSquared < 0.2f)
-        {
-            force = -1 * (1f - (distanceSquared / radiusSquared)) / 0.2f;
-        } else
-        {
-            force = weight * (1f - (distanceSquared / radiusSquared));
-        }
-
-        float dist = Mathf.Sqrt(distanceSquared);
-        float nx = dx / dist;
-        float ny = dy / dist;
-
-        p1.ax += nx * force / config.particleMass;
-        p1.ay += ny * force / config.particleMass;
-
-        particles[i1] = p1;
-        particles[i2] = p2;
-    }
-
-    private float GetWrappedDeltaX(float p1, float p2)
-    {
-        float dx = p2 - p1;
-        float halfWidth = config.width * 0.5f;
-
-        if (dx > halfWidth)
-            dx -= config.width;
-        else if (dx < -halfWidth)
-            dx += config.width;
-
-        return dx;
-    }
-
-    private float GetWrappedDeltaY(float p1, float p2)
-    {
-        float dy = p2 - p1;
-        float halfHeight = config.height * 0.5f;
-
-        if (dy > halfHeight)
-            dy -= config.height;
-        else if (dy < -halfHeight)
-            dy += config.height;
-
-        return dy;
-    }
-
-    private void InitGrid()
-    {
-        gridIndices = new List<int>[config.gridX, config.gridY];
-        gridWidth = (float)config.width / config.gridX;
-        gridHeight = (float)config.height / config.gridY;
-
-        for (int i = 0; i < config.gridX; i++)
-        {
-            for (int j = 0; j < config.gridY; j++)
-            {
-                gridIndices[i, j] = new List<int>();
-            }
-        }
-    }
-
-    private void ClearGrid()
-    {
-        if (NeedsGridInit())
-            InitGrid();
-
-        for (int i = 0; i < config.gridX; i++)
-        {
-            for (int j = 0; j < config.gridY; j++)
-            {
-                gridIndices[i, j].Clear();
-            }
-        }
-    }
-
-    private void BuildGrid()
-    {
-        ClearGrid();
-        for (int i = 0; i < particles.Length; i++)
-        {
-            int x = Mathf.Clamp(
-                (int)(particles[i].x / gridWidth),
-                0,
-                config.gridX - 1
-                );
-            int y = Mathf.Clamp(
-                (int)(particles[i].y / gridHeight),
-                0,
-                config.gridY - 1
-                );
-            gridIndices[x, y].Add(i);
-        }
-    }
-
-    private bool NeedsGridInit()
-    {
-        return gridIndices == null ||
-            gridIndices.GetLength(0) != config.gridX ||
-            gridIndices.GetLength(1) != config.gridY ||
-            !Mathf.Approximately(gridWidth, (float)config.width / config.gridX) ||
-            !Mathf.Approximately(gridHeight, (float)config.height / config.gridY);
-    }
-
-    private int WrapIndex(int index, int length)
-    {
-        return (index % length + length) % length;
-    }
-
     private void UpdateCount()
     {
-        InitGrid();
         ResetParticles();
     }
 
@@ -238,9 +188,16 @@ public class ParticleSystem : MonoBehaviour
 
         particles = new NativeArray<Particle>(config.particleCount, Allocator.Persistent);
         forceBuffer = new NativeArray<float2>(config.particleCount, Allocator.Persistent);
+
+        gridWidth = (float)config.width / config.GetGridX();
+        gridHeight = (float)config.height / config.GetGridY();
+
         FlattenWeights();
-        InitGrid();
         PopulateGrid();
+
+        InitGrid();
+        BuildGrid();
+
     }
 
     private void RandomiseParticlePositions()
@@ -372,43 +329,65 @@ public struct ExecuteJob : IJobParallelFor
     [ReadOnly] public NativeArray<float> weights;
     public int typeCount;
 
+    [ReadOnly] public NativeArray<int> gridCells;
+    [ReadOnly] public NativeArray<int> gridCellStart;
+    [ReadOnly] public NativeArray<int> gridCellCount;
+    public int gridX;
+    public int gridY;
+    public float cellWidth;
+    public float cellHeight;
+
     public void Execute(int i)
     {
         Particle p = particles[i];
-        Particle p1;
-
         float2 total = float2.zero;
 
-        for (int j = 0; j < particles.Length; j++)
+        int cellX = math.clamp((int)(p.x / cellWidth), 0, gridX - 1);
+        int cellY = math.clamp((int)(p.y / cellHeight), 0, gridY - 1);
+
+        int radX = (int)math.ceil(radius / cellWidth);
+        int radY = (int)math.ceil(radius / cellHeight);
+
+        for (int x = -radX; x <= radX; x++)
         {
-            if (i == j)
-                continue;
+            for(int y = -radY; y <= radY; y++)
+            {
+                int wx = (gridX + cellX + x) % gridX;
+                int wy = (gridY + cellY + y) % gridY;
 
-            p1 = particles[j];
 
-            //wraps
-            float dx = p1.x - p.x;
-            dx -= width * math.round(dx / width);
+                int cell = wx * gridY + wy;
 
-            float dy = p1.y - p.y;
-            dy -= height * math.round(dy / height);
+                for (int j = 0; j < gridCellCount[cell]; j++)
+                {
+                    Particle p1 = particles[gridCells[gridCellStart[cell] + j]];
 
-            float distSquared = dx * dx + dy * dy;
+                    float dx = p1.x - p.x;
+                    float dy = p1.y - p.y;
 
-            if (distSquared > radius * radius)
-                continue;
+                    dx -= width * math.round(dx / width);
+                    dy -= height * math.round(dy / height);
 
-            float dist = math.sqrt(distSquared) + 1e-8f;
-            float nd = dist / radius;
+                    float distSquared = dx * dx + dy * dy;
+                    if (distSquared > radius * radius)
+                        continue;
 
-            
-            float weight = weights[p.type * typeCount + p1.type];
+                    float dist = math.sqrt(distSquared) + 1e-8f;
+                    float nd = dist / radius;
 
-            float force = weight * (1f - nd);
-            if (nd < 0.4f)
-                force = -1f * (0.2f / (nd + 0.001f));
+                    float weight = weights[p.type * typeCount + p1.type];
 
-            total += new float2(dx / dist, dy / dist) * force;
+                    float force = weight * (1f - nd);
+                    if (nd < 0.4f)
+                        force = -1f * (1f - (nd + 1e-5f)) / 0.2f;
+
+
+
+                    total += new float2(dx / dist, dy / dist) * force;
+                } 
+
+
+            }
         }
 
         forceBuffer[i] = total;

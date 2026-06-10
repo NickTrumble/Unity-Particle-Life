@@ -132,7 +132,7 @@ GameObject:
   - component: {fileID: 412872201}
   - component: {fileID: 412872200}
   m_Layer: 0
-  m_Name: Particle Renderer
+  m_Name: Particle Renderer CPU
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -145,7 +145,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 412872199}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bd50dc25536ba674fa045db75e385869, type: 3}
   m_Name: 
@@ -249,6 +249,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &730273507
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 730273509}
+  - component: {fileID: 730273508}
+  m_Layer: 0
+  m_Name: Particle Renderer GPU
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &730273508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 730273507}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63fb814315d6a7e46bcc02772e72af75, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  config: {fileID: 1261789554}
+  particleSystem: {fileID: 1932470297}
+  quadMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+  particleMaterial: {fileID: 2100000, guid: f3429f8e53850394c8a4a0e52f77a6d4, type: 2}
+--- !u!4 &730273509
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 730273507}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.5793208, y: -0.8282434, z: -104.475586}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &765701522
 GameObject:
@@ -390,18 +437,16 @@ MonoBehaviour:
   - -1.0530269
   - -0.7466526
   - 1.2920666
-  width: 800
-  height: 450
-  particleCount: 2000
+  width: 375
+  height: 210
+  particleCount: 555
   particleTypeCount: 4
   particleSize: 5
   particleMass: 12
-  forceRadius: 100
+  forceRadius: 45
   maxAttraction: 5
   maxSpeed: 35
   damping: 0.95
-  gridX: 8
-  gridY: 5
   timeStep: 0.1
   TypeColours:
   - {r: 0.95, g: 0.2, b: 0.24, a: 1}

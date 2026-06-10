@@ -39,7 +39,7 @@ public class ParticleRenderer_CPU : MonoBehaviour
 
         CheckForNewSize();
         DrawParticles();
-        Debug.Log("still wokgin");
+
     }
 
     private void CheckForNewSize()

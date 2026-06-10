@@ -102,7 +102,7 @@ public class ParticleConfigEditor : Editor
     private void DrawSimulationSettings()
     {
         EditorGUILayout.LabelField("Simulation", EditorStyles.boldLabel);
-        EditorGUILayout.IntSlider(particleCount, 0, 10000, "Particle Count");
+        EditorGUILayout.IntSlider(particleCount, 0, 100000, "Particle Count");
         EditorGUILayout.IntSlider(particleTypeCount, 1, 8, "Types");
         EditorGUILayout.IntSlider(forceRadius, 5, 160, "Force Radius");
         EditorGUILayout.IntSlider(maxAttraction, 0, 10, "Max Attraction");

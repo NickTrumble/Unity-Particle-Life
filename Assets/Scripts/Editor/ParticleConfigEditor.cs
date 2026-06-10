@@ -15,6 +15,7 @@ public class ParticleConfigEditor : Editor
     private SerializedProperty damping;
     private SerializedProperty timeStep;
     private SerializedProperty typeColours;
+    private SerializedProperty forceScaling;
 
     private bool showAdvanced;
 
@@ -30,6 +31,7 @@ public class ParticleConfigEditor : Editor
         maxSpeed = serializedObject.FindProperty("maxSpeed");
         damping = serializedObject.FindProperty("damping");
         timeStep = serializedObject.FindProperty("timeStep");
+        forceScaling = serializedObject.FindProperty("forceScaling");
         typeColours = serializedObject.FindProperty("TypeColours");
     }
 
@@ -109,6 +111,7 @@ public class ParticleConfigEditor : Editor
         EditorGUILayout.Slider(maxSpeed, 1f, 100f, "Max Speed");
         EditorGUILayout.Slider(damping, 0.75f, 0.99f, "Damping");
         EditorGUILayout.Slider(timeStep, 0.05f, 1f, "Time Step");
+        EditorGUILayout.Slider(forceScaling, 0.05f, 5f, "Force Scaling");
         EditorGUILayout.IntSlider(particleMass, 1, 50, "Mass");
     }
 

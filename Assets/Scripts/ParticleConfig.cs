@@ -21,6 +21,8 @@ public class ParticleConfig : MonoBehaviour
 
     public float timeStep = 0.45f;
 
+    public float forceScaling = 1f;
+
     public Action CountUpdated;
     public Action WeightUpdated;
     public Action ParticlesResetRequested;
@@ -33,12 +35,13 @@ public class ParticleConfig : MonoBehaviour
 
     private Color[] baseColours = new Color[]
     {
-        new Color(0.95f, 0.20f, 0.24f),
-        new Color(0.18f, 0.85f, 0.42f),
-        new Color(0.22f, 0.48f, 1.00f),
-        new Color(1.00f, 0.82f, 0.18f)
+        new Color(1f, 0f, 0f),          // red
+        new Color(1f, 0.5f, 0f),        // orange
+        new Color(1f, 0.92f, 0.16f),    // yellow
+        new Color(0.18f, 0.85f, 0.42f), // green
+        new Color(0.22f, 0.48f, 1.00f), // blue
+        new Color(0.60f, 0.20f, 0.80f), // purple
     };
-
     private void Start()
     {
         EnsureConfigArrays();
@@ -87,18 +90,18 @@ public class ParticleConfig : MonoBehaviour
 
     public void ApplyRecommendedSettings()
     {
-        width = 800;
-        height = 450;
-        particleCount = 300;
-        particleTypeCount = 4;
+        width = 1600;
+        height = 900;
+        particleCount = 2000;
+        particleTypeCount = 6;
         particleSize = 5;
         particleMass = 12;
         forceRadius = 65;
         maxSpeed = 35f;
-        damping = 0.88f;
-        timeStep = 0.45f;
+        damping = 0.95f;
+        timeStep = 0.2f;
 
-        gridX = 12;
+        gridX = 24;
         gridY = 6;
         TypeColours = new Color[particleTypeCount];
         Array.Copy(baseColours, TypeColours, particleTypeCount);
@@ -106,14 +109,17 @@ public class ParticleConfig : MonoBehaviour
         weightMatrix = new float[particleTypeCount * particleTypeCount];
         float[] recommendedWeights =
         {
-             1.20f, -2.40f,  0.80f, -0.70f,
-            -0.35f,  1.00f, -2.10f,  0.90f,
-             0.55f, -0.80f,  1.10f, -2.20f,
-            -1.80f,  0.75f, -0.45f,  1.00f
+             1f, 0.2f,  0f,   0f,   0f,   0f,
+             0f,   1f, 0.2f,   0f,   0f,   0f,
+             0f,   0f,   1f, 0.2f,   0f,   0f,
+             0f,   0f,   0f,   1f, 0.2f,   0f,
+             0f,   0f,   0f,   0f,   1f, 0.2f,
+             0.2f, 0f,   0f,   0f,   0f,   1f
         };
         Array.Copy(recommendedWeights, weightMatrix, recommendedWeights.Length);
 
         CountUpdated?.Invoke();
+        WeightUpdated?.Invoke();
     }
 
     void OnValidate()

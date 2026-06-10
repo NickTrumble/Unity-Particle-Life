@@ -7,6 +7,7 @@ using Unity.Mathematics;
 using UnityEditor.PackageManager;
 using System;
 using JetBrains.Annotations;
+using static UnityEngine.ParticleSystem;
 
 public struct Particle
 {
@@ -52,7 +53,7 @@ public class ParticleSystem : MonoBehaviour
         if (config == null || particles == null || !config.isRunning())
             return;
 
-        BuildGrid();
+        //BuildGrid();
 
         var forceJob = new ExecuteJob
         {
@@ -73,8 +74,6 @@ public class ParticleSystem : MonoBehaviour
             cellWidth = gridWidth
         };
 
-        JobHandle handle = forceJob.Schedule(particles.Length, 64);
-
         var integrateJob = new IntegrateJob
         {
             particles = particles,
@@ -86,6 +85,22 @@ public class ParticleSystem : MonoBehaviour
             height = config.height
         };
 
+        var buildJob = new BuildGridJob
+        {
+            cellCount = config.GetGridX() * config.GetGridY(),
+            particles = particles,
+            gridCellCount = gridCellCount,
+            gridCells = gridCells,
+            gridCellStart = gridCellStart,
+            gridX = config.GetGridX(),
+            gridY = config.GetGridY(),
+            gridHeight = gridHeight,
+            gridWidth = gridWidth
+
+        };
+
+        JobHandle handle = buildJob.Schedule();
+        handle = forceJob.Schedule(particles.Length, 64, handle);
         handle = integrateJob.Schedule(particles.Length, 64, handle);
 
         handle.Complete();
@@ -164,6 +179,7 @@ public class ParticleSystem : MonoBehaviour
         for (int i = 0; i < cellCount; i++)
             gridCellCount[i] = 0;
     }
+
     private void FlattenWeights()
     {
         int typeCount = config.particleTypeCount;
@@ -196,8 +212,6 @@ public class ParticleSystem : MonoBehaviour
         PopulateGrid();
 
         InitGrid();
-        BuildGrid();
-
     }
 
     private void RandomiseParticlePositions()
@@ -377,11 +391,20 @@ public struct ExecuteJob : IJobParallelFor
 
                     float weight = weights[p.type * typeCount + p1.type];
 
-                    float force = weight * (1f - nd);
-                    if (nd < 0.4f)
-                        force = -1f * (1f - (nd + 1e-5f)) / 0.2f;
+                    //float force = weight * (1f - nd);
+                    //if (nd < 0.4f)
+                    //    force = -1f * (1f - (nd + 1e-5f)) / 0.2f;
 
-
+                    float force;
+                    if (nd < 0.35f)
+                    {
+                        force = -1f * (0.35f - nd) / 0.35f;   // smooth repulsion
+                    }
+                    else
+                    {
+                        float t = (nd - 0.35f) / (1f - 0.35f);
+                        force = weight * (1f - t);           // smooth attraction decay
+                    }
 
                     total += new float2(dx / dist, dy / dist) * force;
                 } 
@@ -391,5 +414,58 @@ public struct ExecuteJob : IJobParallelFor
         }
 
         forceBuffer[i] = total;
+    }
+}
+
+//build grid on gpu
+[BurstCompile]
+public struct BuildGridJob : IJob
+{
+    public NativeArray<Particle> particles;
+
+    public int cellCount;
+    public NativeArray<int> gridCells;
+    public NativeArray<int> gridCellStart;
+    public NativeArray<int> gridCellCount;
+
+    public float gridWidth;
+    public float gridHeight;
+
+    public int gridX;
+    public int gridY;
+
+    public void Execute()
+    {
+
+        for (int i = 0; i < cellCount; i++)
+            gridCellCount[i] = 0;
+
+        for (int i = 0; i < particles.Length; i++)
+        {
+            gridCellCount[GetCellIndex(particles[i])]++;
+        }
+
+        gridCellStart[0] = 0;
+        for (int i = 1; i < cellCount; i++)
+        {
+            gridCellStart[i] = gridCellStart[i - 1] + gridCellCount[i - 1];
+        }
+
+        for (int i = 0; i < cellCount; i++)
+            gridCellCount[i] = 0;
+
+        for (int i = 0; i < particles.Length; i++)
+        {
+            int cell = GetCellIndex(particles[i]);
+            gridCells[gridCellStart[cell] + gridCellCount[cell]] = i;
+            gridCellCount[cell]++;
+        }
+    }
+
+    private int GetCellIndex(Particle p)
+    {
+        int cellX = Mathf.Clamp((int)(p.x / gridWidth), 0, gridX - 1);
+        int cellY = Mathf.Clamp((int)(p.y / gridHeight), 0, gridY - 1);
+        return cellX * gridY + cellY;
     }
 }
